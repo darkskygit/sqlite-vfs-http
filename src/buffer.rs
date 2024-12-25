@@ -98,7 +98,6 @@ mod tests {
         lazy_buffer.read(&mut buf1, 0).unwrap();
         assert_eq!(buf1, vec![1; 16]);
 
-        // 再次读取块 0，应该命中缓存
         let mut buf2 = vec![0u8; 16];
         lazy_buffer.read(&mut buf2, 0).unwrap();
         assert_eq!(buf2, vec![1; 16]);

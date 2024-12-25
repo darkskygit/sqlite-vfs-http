@@ -3,6 +3,7 @@ name = "sqlite-vfs-http"
 version = "0.1.0"
 edition = "2021"
 authors = ["DarkSky <darksky2048@gmail.com>"]
+license = "AGPL-3.0-only"
 license-file = "LICENSE"
 keywords = ["sqlite", "vfs", "http"]
 description = "Query sqlite database over http"
