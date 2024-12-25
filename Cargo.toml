@@ -1,0 +1,15 @@
+[package]
+name = "sqlite-vfs-http"
+version = "0.1.0"
+edition = "2021"
+authors = ["DarkSky <darksky2048@gmail.com>"]
+license-file = "LICENSE"
+keywords = ["sqlite", "vfs", "http"]
+description = "Query sqlite database over http"
+repository = "https://github.com/darkskygit/sqlite-vfs-http"
+readme = "README.md"
+
+[dependencies]
+reqwest = "0.12"
+sqlite-vfs = "0.2"
+tokio = "1"
