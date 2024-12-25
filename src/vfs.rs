@@ -163,7 +163,7 @@ mod tests {
     #[tokio::test]
     async fn test_http_vfs() {
         init_server(|base| async move {
-            super::register_http_vfs();
+            vfs::register_http_vfs();
 
             {
                 let conn = Connection::open_with_flags_and_vfs(
