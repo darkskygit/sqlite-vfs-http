@@ -1,14 +1,21 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+mod buffer;
+mod conn;
+mod http;
+mod utils;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+use buffer::LazyBuffer;
+use conn::Connection;
+use http::HttpVfs;
+use sqlite_vfs::register;
+use std::sync::{Arc, Once, RwLock};
+use utils::AtomicRuntime;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub use http::HTTP_VFS;
+
+pub fn register_http_vfs() {
+    const ONCE: Once = Once::new();
+
+    ONCE.call_once(|| {
+        let _ = register(HTTP_VFS, HttpVfs::default(), true);
+    })
 }
