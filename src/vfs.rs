@@ -8,8 +8,18 @@ use std::{
 
 pub const HTTP_VFS: &str = "http";
 
-#[derive(Default)]
-pub struct HttpVfs;
+pub struct HttpVfs {
+    block_size: usize,
+}
+
+impl Default for HttpVfs {
+    fn default() -> Self {
+        Self {
+            // 4MB block size
+            block_size: 1024 * 4096,
+        }
+    }
+}
 
 impl Vfs for HttpVfs {
     type Handle = Connection;
@@ -22,7 +32,7 @@ impl Vfs for HttpVfs {
             ));
         }
 
-        Ok(Connection::new(db)?)
+        Ok(Connection::new(db, self.block_size)?)
     }
 
     fn delete(&self, _db: &str) -> Result<(), Error> {

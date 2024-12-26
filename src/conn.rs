@@ -21,58 +21,43 @@ impl Connection {
         headers.get(key).and_then(|h| h.to_str().ok())
     }
 
-    fn get_length(rt: AtomicRuntime, url: String) -> Result<usize, reqwest::Error> {
-        let Some(response) = rt
+    fn get_length(rt: AtomicRuntime, url: String) -> Option<usize> {
+        if let Some(response) = rt
             .block_on(move |client| client.get(url).send())
             .and_then(|r| r.ok())
-        else {
-            return Ok(0);
-        };
-
-        let headers = response.headers();
-        let Some(accept_range) = Self::get_header(headers, ACCEPT_RANGES) else {
-            return Ok(0);
-        };
-
-        if accept_range != "bytes" {
-            return Ok(0);
+        {
+            let headers = response.headers();
+            if let Some(accept_range) = Self::get_header(headers, ACCEPT_RANGES) {
+                if accept_range == "bytes" {
+                    let length = Self::get_header(headers, CONTENT_LENGTH)
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or_default();
+                    return Some(length);
+                }
+            }
         }
-
-        let length = Self::get_header(headers, CONTENT_LENGTH)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or_default();
-        Ok(length)
+        None
     }
 
     fn init_with_url(url: &str) -> Result<(AtomicRuntime, usize), Error> {
         let rt = AtomicRuntime::default();
         match Self::get_length(rt.clone(), url.to_string()) {
-            Ok(size) => {
-                if size != 0 {
-                    Ok((rt, size))
-                } else {
-                    rt.drop();
-                    Err(Error::new(
-                        ErrorKind::InvalidData,
-                        "database size is not a multiple of page size",
-                    ))
-                }
-            }
-            Err(e) => {
+            Some(size) if size != 0 => Ok((rt, size)),
+            _ => {
                 rt.drop();
                 Err(Error::new(
                     ErrorKind::Other,
-                    format!("Failed to initialize db: {e}"),
+                    "Failed to check database size",
                 ))
             }
         }
     }
 
-    pub fn new(url: &str) -> Result<Self, Error> {
-        let (rt, size) = Self::init_with_url(url)?;
+    pub fn new(url: &str, block_size: usize) -> Result<Self, Error> {
+        let (rt, length) = Self::init_with_url(url)?;
         let buffer = LazyBuffer::new(
-            size,
-            1024 * 1024 * 10,
+            length,
+            block_size,
             Box::new({
                 let url = url.to_string();
                 let rt = rt.clone();
