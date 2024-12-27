@@ -53,11 +53,12 @@ impl Connection {
         }
     }
 
-    pub fn new(url: &str, block_size: usize) -> Result<Self, Error> {
+    pub fn new(url: &str, block_size: usize, download_threshold: usize) -> Result<Self, Error> {
         let (rt, length) = Self::init_with_url(url)?;
         let buffer = LazyBuffer::new(
             length,
             block_size,
+            download_threshold,
             Box::new({
                 let url = url.to_string();
                 let rt = rt.clone();

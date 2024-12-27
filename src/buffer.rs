@@ -36,15 +36,17 @@ type Fetch = Box<dyn Fn(usize, usize) -> Result<Vec<u8>> + Send + Sync>;
 pub struct LazyBuffer {
     blocks: HashMap<usize, LazyBlock>,
     block_size: usize,
+    download_threshold: usize,
     length: usize,
     fetch: Arc<Fetch>,
 }
 
 impl LazyBuffer {
-    pub fn new(length: usize, block_size: usize, fetch: Fetch) -> Self {
+    pub fn new(length: usize, block_size: usize, download_threshold: usize, fetch: Fetch) -> Self {
         Self {
             blocks: HashMap::new(),
             block_size,
+            download_threshold,
             length,
             fetch: Arc::new(fetch),
         }
@@ -74,7 +76,16 @@ impl LazyBuffer {
         }
         let block_index = offset / self.block_size;
         let block_offset = offset - block_index * self.block_size;
-        self.get_block(block_index)?.read(buf, block_offset)?;
+        if !self.blocks.contains_key(&block_index) && buf.len() <= self.download_threshold {
+            // skip full block fetch if buf is smaller than download_threshold
+            let data = (self.fetch)(offset, buf.len())?;
+            if data.len() != buf.len() {
+                return Err(Error::new(ErrorKind::UnexpectedEof, "read out of bounds"));
+            }
+            buf.copy_from_slice(&data);
+        } else {
+            self.get_block(block_index)?.read(buf, block_offset)?;
+        }
         Ok(())
     }
 }
@@ -92,7 +103,7 @@ mod tests {
         let block_size = 16;
         let total_size = 64;
 
-        let mut lazy_buffer = LazyBuffer::new(total_size, block_size, Box::new(mock_fetch));
+        let mut lazy_buffer = LazyBuffer::new(total_size, block_size, 0, Box::new(mock_fetch));
 
         let mut buf1 = vec![0u8; 16];
         lazy_buffer.read(&mut buf1, 0).unwrap();
