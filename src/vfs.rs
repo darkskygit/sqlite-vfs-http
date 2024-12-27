@@ -6,8 +6,6 @@ use std::{
     time::Duration,
 };
 
-pub const HTTP_VFS: &str = "http";
-
 pub struct HttpVfs {
     pub(crate) block_size: usize,
     pub(crate) download_threshold: usize,

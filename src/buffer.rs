@@ -35,6 +35,7 @@ type Fetch = Box<dyn Fn(usize, usize) -> Result<Vec<u8>> + Send + Sync>;
 
 pub struct LazyBuffer {
     blocks: HashMap<usize, LazyBlock>,
+    blocks_read: HashMap<usize, usize>,
     block_size: usize,
     download_threshold: usize,
     length: usize,
@@ -45,6 +46,7 @@ impl LazyBuffer {
     pub fn new(length: usize, block_size: usize, download_threshold: usize, fetch: Fetch) -> Self {
         Self {
             blocks: HashMap::new(),
+            blocks_read: HashMap::new(),
             block_size,
             download_threshold,
             length,
@@ -76,13 +78,25 @@ impl LazyBuffer {
         }
         let block_index = offset / self.block_size;
         let block_offset = offset - block_index * self.block_size;
-        if !self.blocks.contains_key(&block_index) && buf.len() <= self.download_threshold {
+        let block_read = self
+            .blocks_read
+            .get(&block_index)
+            .copied()
+            .unwrap_or_default();
+        let buffer_size = buf.len();
+        if !self.blocks.contains_key(&block_index)
+            && block_read + buffer_size <= self.download_threshold
+        {
             // skip full block fetch if buf is smaller than download_threshold
-            let data = (self.fetch)(offset, buf.len())?;
-            if data.len() != buf.len() {
+            let data = (self.fetch)(offset, buffer_size)?;
+            if data.len() != buffer_size {
                 return Err(Error::new(ErrorKind::UnexpectedEof, "read out of bounds"));
             }
             buf.copy_from_slice(&data);
+            self.blocks_read
+                .entry(block_index)
+                .and_modify(|size| *size += buffer_size)
+                .or_insert(buffer_size);
         } else {
             self.get_block(block_index)?.read(buf, block_offset)?;
         }
