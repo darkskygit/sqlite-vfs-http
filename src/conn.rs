@@ -39,8 +39,8 @@ impl Connection {
         None
     }
 
-    fn init_with_url(url: &str) -> Result<(AtomicRuntime, usize), Error> {
-        let rt = AtomicRuntime::default();
+    fn init_with_url(url: &str, client: Option<Client>) -> Result<(AtomicRuntime, usize), Error> {
+        let rt = AtomicRuntime::new(client);
         match Self::get_length(rt.clone(), url.to_string()) {
             Some(size) if size != 0 => Ok((rt, size)),
             _ => {
@@ -53,8 +53,13 @@ impl Connection {
         }
     }
 
-    pub fn new(url: &str, block_size: usize, download_threshold: usize) -> Result<Self, Error> {
-        let (rt, length) = Self::init_with_url(url)?;
+    pub fn new(
+        url: &str,
+        client: Option<Client>,
+        block_size: usize,
+        download_threshold: usize,
+    ) -> Result<Self, Error> {
+        let (rt, length) = Self::init_with_url(url, client)?;
         let buffer = LazyBuffer::new(
             length,
             block_size,

@@ -7,6 +7,7 @@ use std::{
 };
 
 pub struct HttpVfs {
+    pub(crate) client: Option<Client>,
     pub(crate) block_size: usize,
     pub(crate) download_threshold: usize,
 }
@@ -24,6 +25,7 @@ impl Vfs for HttpVfs {
 
         Ok(Connection::new(
             db,
+            self.client.clone(),
             self.block_size,
             self.download_threshold,
         )?)

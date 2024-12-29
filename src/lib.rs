@@ -5,7 +5,8 @@ mod vfs;
 
 use buffer::LazyBuffer;
 use conn::Connection;
-use sqlite_vfs::register;
+use reqwest::Client;
+use sqlite_vfs::{register, RegisterError};
 use std::sync::{Arc, Once, RwLock};
 use utils::AtomicRuntime;
 use vfs::HttpVfs;
@@ -16,6 +17,8 @@ pub const HTTP_VFS: &str = "http";
 pub struct HttpVfsRegister {
     /// how many pages in block, default is 8MB, 2048 pages
     block_size: usize,
+    /// default client
+    client: Option<Client>,
     /// read the first few pages of each block without downloading the entire block
     download_threshold: usize,
     /// sqlite's page size is 4KB by default
@@ -25,6 +28,7 @@ pub struct HttpVfsRegister {
 impl HttpVfsRegister {
     pub fn new() -> Self {
         Self {
+            client: None,
             block_size: SQLITE_PAGE_SIZE * 1024 * 2,
             download_threshold: 0,
             page_size: SQLITE_PAGE_SIZE,
@@ -34,6 +38,13 @@ impl HttpVfsRegister {
     pub fn with_block_size(self, page_num: usize) -> Self {
         Self {
             block_size: page_num * self.page_size,
+            ..self
+        }
+    }
+
+    pub fn with_client(self, client: Client) -> Self {
+        Self {
+            client: Some(client),
             ..self
         }
     }
@@ -50,21 +61,33 @@ impl HttpVfsRegister {
         Self { page_size, ..self }
     }
 
-    pub fn register(self) {
-        const ONCE: Once = Once::new();
-
+    pub fn register(self) -> Result<(), RegisterError> {
         let vfs_instance = HttpVfs {
+            client: self.client,
             block_size: self.block_size,
             download_threshold: self.download_threshold,
         };
-
-        ONCE.call_once(|| {
-            let _ = register(HTTP_VFS, vfs_instance, true);
-        })
+        register(HTTP_VFS, vfs_instance, true)
     }
 }
 
+/// register http vfs, use `Once` internally to ensure only register once
 #[inline(always)]
 pub fn register_http_vfs() {
-    HttpVfsRegister::new().register();
+    const ONCE: Once = Once::new();
+
+    ONCE.call_once(|| {
+        let _ = HttpVfsRegister::new().register();
+    })
+}
+
+/// register http vfs with custom client
+/// use `Once` internally to ensure only register once
+#[inline(always)]
+pub fn register_http_vfs_with_custom(cb: impl FnOnce(HttpVfsRegister) -> HttpVfsRegister) {
+    const ONCE: Once = Once::new();
+
+    ONCE.call_once(|| {
+        let _ = cb(HttpVfsRegister::new()).register();
+    })
 }

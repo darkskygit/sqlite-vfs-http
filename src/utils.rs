@@ -9,10 +9,10 @@ pub struct AtomicRuntime {
     rt: Arc<RwLock<Option<Runtime>>>,
 }
 
-impl Default for AtomicRuntime {
-    fn default() -> Self {
+impl AtomicRuntime {
+    pub fn new(client: Option<Client>) -> Self {
         Self {
-            client: Client::new(),
+            client: client.unwrap_or_else(|| Client::new()),
             rt: Arc::new(RwLock::new(Runtime::new().ok())),
         }
     }
